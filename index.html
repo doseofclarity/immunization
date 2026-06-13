@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Immunization | Vaccination Schedules · Pillitteri MCN Review</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Active recall – forced with !important for reliable hiding */
+        .recall-mode .reveal-text {
+            background-color: #cbd5e1 !important;
+            color: transparent !important;
+            border-radius: 0.375rem !important;
+            padding: 0 0.25rem !important;
+            cursor: pointer !important;
+            transition: background-color 0.2s, color 0.2s !important;
+            box-shadow: inset 0 0 0 1px #94a3b8 !important;
+            display: inline-block !important;
+        }
+        .recall-mode .reveal-text:hover,
+        .recall-mode .reveal-text.revealed {
+            background-color: #fde047 !important;
+            color: #1e293b !important;
+            box-shadow: none !important;
+        }
+        .content-section { animation: fade 0.3s ease; }
+        @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .locked-section { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+        .quiz-feedback-correct { background-color: #dcfce7; border-left: 4px solid #22c55e; }
+        .quiz-feedback-wrong { background-color: #fee2e2; border-left: 4px solid #ef4444; }
+        .flip-card {
+            background-color: transparent;
+            height: 200px;
+            perspective: 1000px;
+        }
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            border-radius: 1rem;
+        }
+        .flip-card:hover .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .flip-card-front { background-color: #1e293b; color: white; }
+        .flip-card-back { background-color: #b45309; color: white; transform: rotateY(180deg); }
+        .vaccine-table th { background-color: #b45309; color: white; }
+        .progress-bar { background: linear-gradient(90deg, #b45309 0%, #f59e0b 100%); height: 6px; border-radius: 3px; }
+    </style>
+    <script>
+        tailwind.config = { theme: { extend: { colors: { imm: { light: '#fffbeb', DEFAULT: '#b45309', dark: '#78350f' } } } } }
+    </script>
+</head>
+<body class="bg-slate-50 h-screen flex flex-col md:flex-row font-sans text-slate-800 overflow-hidden">
+
+    <!-- Mobile Header -->
+    <div class="md:hidden bg-imm-dark text-white p-4 flex justify-between items-center shadow-md z-30 shrink-0">
+        <button onclick="toggleMobileMenu()" class="text-white focus:outline-none z-40">
+            <i class="fa-solid fa-bars text-2xl"></i>
+        </button>
+        <h1 class="font-bold text-lg absolute left-1/2 transform -translate-x-1/2 pointer-events-none">
+            <i class="fa-solid fa-syringe mr-2 text-imm-light"></i> Immunization
+        </h1>
+        <div class="w-8"></div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <nav id="sidebar" class="hidden md:flex flex-col w-full md:w-80 bg-white shadow-2xl h-full absolute md:relative z-30 transition-transform duration-300 shrink-0 border-r border-slate-200">
+        <div class="p-6 bg-gradient-to-br from-imm-dark to-imm text-white hidden md:block shrink-0">
+            <h1 class="font-black text-2xl tracking-wide"><i class="fa-solid fa-syringe text-imm-light mr-2"></i> Immunization</h1>
+            <p class="text-sm text-slate-300 mt-1 font-medium">Vaccination schedules · Pillitteri MCN</p>
+        </div>
+        <div class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1 text-sm font-medium">
+                <li><button onclick="showSection('home')" id="btn-home" class="nav-btn w-full text-left px-6 py-3 bg-imm-light text-imm-dark border-r-4 border-imm-dark transition-colors"><i class="fa-solid fa-house w-6 nav-icon"></i><i class="fa-solid fa-lock w-6 hidden"></i> Home / Start</button></li>
+                <li><button onclick="showSection('fundamentals')" id="btn-fundamentals" class="nav-btn w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors locked-section"><i class="fa-solid fa-chalkboard-user w-6 nav-icon hidden"></i><i class="fa-solid fa-lock w-6 text-slate-400"></i> Fundamentals of Immunization</button></li>
+                <li><button onclick="showSection('infant')" id="btn-infant" class="nav-btn w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors locked-section"><i class="fa-solid fa-baby-carriage w-6 nav-icon hidden"></i><i class="fa-solid fa-lock w-6 text-slate-400"></i> Infant Vaccines (Birth–12 mo)</button></li>
+                <li><button onclick="showSection('toddlerpreschool')" id="btn-toddlerpreschool" class="nav-btn w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors locked-section"><i class="fa-solid fa-child w-6 nav-icon hidden"></i><i class="fa-solid fa-lock w-6 text-slate-400"></i> Toddler & Preschool (12 mo–6 yr)</button></li>
+                <li><button onclick="showSection('schoolage')" id="btn-schoolage" class="nav-btn w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors locked-section"><i class="fa-solid fa-book-open w-6 nav-icon hidden"></i><i class="fa-solid fa-lock w-6 text-slate-400"></i> School‑age & Adolescent (7–18 yr)</button></li>
+                <li><button onclick="showSection('adult')" id="btn-adult" class="nav-btn w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors locked-section"><i class="fa-solid fa-user w-6 nav-icon hidden"></i><i class="fa-solid fa-lock w-6 text-slate-400"></i> Adult & Special Populations</button></li>
+                <li><button onclick="showSection('nursing')" id="btn-nursing" class="nav-btn w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors locked-section"><i class="fa-solid fa-user-nurse w-6 nav-icon hidden"></i><i class="fa-solid fa-lock w-6 text-slate-400"></i> Nursing Role & Adverse Events</button></li>
+                <li><button onclick="showSection('mnemonics')" id="btn-mnemonics" class="nav-btn w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors border-t border-slate-200 mt-2 locked-section"><i class="fa-solid fa-brain w-6 nav-icon hidden"></i><i class="fa-solid fa-lock w-6 text-slate-400"></i> Mnemonics & Review</button></li>
+                <li><button onclick="showSection('final_quiz_sec')" id="btn-final_quiz_sec" class="nav-btn w-full text-left px-6 py-3 text-slate-600 hover:bg-slate-50 transition-colors locked-section"><i class="fa-solid fa-graduation-cap w-6 text-amber-500 nav-icon hidden"></i><i class="fa-solid fa-lock w-6 text-slate-400"></i> Final 50‑Item Exam</button></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="flex-1 h-full overflow-y-auto bg-slate-100 relative w-full">
+        <div class="fixed top-16 md:top-4 right-4 md:right-8 z-40 flex items-center bg-white/90 backdrop-blur px-4 py-3 rounded-full shadow-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors" onclick="toggleRecallMode()">
+            <span class="mr-3 text-sm font-bold text-slate-700 hidden md:inline"><i class="fa-solid fa-brain text-imm mr-1"></i> Active Recall</span>
+            <span class="mr-3 text-sm font-bold text-slate-700 md:hidden"><i class="fa-solid fa-brain text-imm"></i></span>
+            <button id="recall-toggle" class="w-12 h-6 bg-slate-300 rounded-full relative transition-colors duration-300 focus:outline-none shadow-inner pointer-events-none">
+                <div id="recall-knob" class="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 transition-transform duration-300 shadow"></div>
+            </button>
+        </div>
+
+        <div class="p-4 md:p-8 max-w-6xl mx-auto pb-32">
+
+            <!-- HOME Section -->
+            <section id="home" class="content-section flex flex-col items-center justify-center min-h-[80vh] text-center block">
+                <div class="bg-gradient-to-br from-slate-800 to-imm-dark text-white rounded-3xl shadow-2xl p-10 md:p-16 w-full relative overflow-hidden">
+                    <div class="absolute top-0 right-0 -mt-10 -mr-10 text-white opacity-5 pointer-events-none"><i class="fa-solid fa-vial text-[20rem]"></i></div>
+                    <div class="relative z-10">
+                        <div class="bg-white/10 backdrop-blur-sm inline-block p-4 rounded-full text-imm-light mb-6 shadow-sm border border-white/20">
+                            <i class="fa-solid fa-syringe text-5xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-300 mb-2 uppercase tracking-widest">Maternal & Child Health Nursing</h3>
+                        <h1 class="text-4xl md:text-6xl font-black text-white mb-6 leading-tight">Immunization<br>Vaccination Across the Lifespan</h1>
+                        <div class="bg-white/10 backdrop-blur inline-block px-6 py-3 rounded-full mb-10 border border-white/20">
+                            <p class="text-lg text-white font-medium">"Vaccines are the most effective public health intervention for preventing infectious diseases." – Pillitteri</p>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8">
+                            <div class="stage-card bg-amber-500/20 p-3 rounded-2xl"><span class="font-black">Infant</span><br><span class="text-xs">Birth–12 mo</span></div>
+                            <div class="stage-card bg-amber-500/20 p-3 rounded-2xl"><span class="font-black">Toddler/Preschool</span><br><span class="text-xs">1–6 yr</span></div>
+                            <div class="stage-card bg-amber-500/20 p-3 rounded-2xl"><span class="font-black">School‑age/Adolescent</span><br><span class="text-xs">7–18 yr</span></div>
+                            <div class="stage-card bg-amber-500/20 p-3 rounded-2xl"><span class="font-black">Adult</span><br><span class="text-xs">19+ yr</span></div>
+                        </div>
+                        <button onclick="unlockFirstSection()" class="mt-10 bg-imm hover:bg-imm-dark text-white font-black py-4 px-10 rounded-full shadow-xl transition-transform hover:scale-105 text-lg flex items-center mx-auto">
+                            Begin Lecture <i class="fa-solid fa-arrow-right ml-3"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 1: Fundamentals -->
+            <section id="fundamentals" class="content-section hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+                    <h2 class="text-3xl font-black text-slate-800 mb-4 border-b-2 border-imm pb-3"><i class="fa-solid fa-flask text-imm mr-4"></i> Fundamentals of Immunization</h2>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-amber-50 p-5 rounded-xl">
+                            <p><span class="font-bold">Active immunity:</span> <span class="reveal-text">Body produces antibodies after exposure to antigen (vaccine or natural infection). Long‑lasting.</span></p>
+                            <p class="mt-3"><span class="font-bold">Passive immunity:</span> <span class="reveal-text">Received antibodies (maternal, immunoglobulin). Temporary.</span></p>
+                            <p><span class="font-bold">Herd immunity:</span> <span class="reveal-text">High vaccination rate protects unvaccinated individuals.</span></p>
+                            <p><span class="font-bold">Vaccine types:</span> <span class="reveal-text">Live attenuated (MMR, Varicella, LAIV), inactivated (IPV, HepA), subunit/recombinant (HPV, HepB), toxoid (DTaP), conjugate (Hib, PCV13).</span></p>
+                        </div>
+                        <div>
+                            <canvas id="herdChart" width="400" height="200" class="w-full h-auto bg-slate-50 p-2 rounded-xl shadow-inner"></canvas>
+                            <p class="text-xs text-center mt-2">Herd immunity threshold depends on disease infectivity (R₀)</p>
+                        </div>
+                    </div>
+                    <div class="flip-card mt-6 w-full max-w-sm mx-auto">
+                        <div class="flip-card-inner"><div class="flip-card-front"><i class="fa-regular fa-lightbulb text-3xl mb-2"></i>Contraindication to live vaccines</div><div class="flip-card-back">Pregnancy, severe immunosuppression, anaphylaxis to previous dose or component.</div></div>
+                    </div>
+                    <button onclick="openQuiz('fundamentals')" class="mt-8 w-full bg-slate-800 text-white font-black py-4 rounded-xl">Take Quiz → Unlock Infant Vaccines</button>
+                </div>
+            </section>
+
+            <!-- Section 2: Infant Vaccines (Birth–12 mo) -->
+            <section id="infant" class="content-section hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-black">Infant Vaccines (Birth – 12 months)</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm border vaccine-table">
+                            <thead><tr><th class="p-2">Age</th><th>Vaccine</th><th>Dose #</th></tr></thead>
+                            <tbody class="bg-white">
+                                <tr class="border-b"><td class="p-2 font-bold">Birth</td><td><span class="reveal-text">HepB</span></td><td>1</td></tr>
+                                <tr class="border-b"><td class="p-2 font-bold">2 months</td><td><span class="reveal-text">DTaP, IPV, Hib, PCV13, RV (rotavirus)</span></td><td>1</td></tr>
+                                <tr class="border-b"><td class="p-2 font-bold">4 months</td><td><span class="reveal-text">DTaP, IPV, Hib, PCV13, RV</span></td><td>2</td></tr>
+                                <tr class="border-b"><td class="p-2 font-bold">6 months</td><td><span class="reveal-text">DTaP, IPV, Hib, PCV13, RV (3rd dose), HepB (3rd)</span></td><td>3/3</td></tr>
+                                <tr class="border-b"><td class="p-2 font-bold">6–12 mo</td><td><span class="reveal-text">Influenza (annually, first dose at 6 mo)</span></td><td>1 (2 doses first year)</td></tr>
+                                <tr><td class="p-2 font-bold">12 months</td><td><span class="reveal-text">MMR, Varicella, HepA, PCV13 (4th)</span></td><td>1</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flip-card mt-4 h-48"><div class="flip-card-inner"><div class="flip-card-front">Why is rotavirus vaccine not given after 8 months?</div><div class="flip-card-back">Risk of intussusception increases with later doses.</div></div></div>
+                    <button onclick="openQuiz('infant')" class="mt-6 w-full bg-slate-800 text-white font-black py-4 rounded-xl">Quiz → Unlock Toddler/Preschool</button>
+                </div>
+            </section>
+
+            <!-- Section 3: Toddler & Preschool (12 mo–6 yr) -->
+            <section id="toddlerpreschool" class="content-section hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-black">Toddler & Preschool (12 months – 6 years)</h2>
+                    <table class="w-full text-sm border">
+                        <thead class="bg-imm text-white"><tr><th class="p-2">Age</th><th>Vaccine</th><th>Booster/Dose</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-2 font-bold">12–15 mo</td><td><span class="reveal-text">MMR, Varicella, HepA (first), PCV13 (4th)</span></td><td>1st</td></tr>
+                            <tr class="border-b"><td class="p-2 font-bold">15–18 mo</td><td><span class="reveal-text">DTaP (4th dose)</span></td><td>4th</td></tr>
+                            <tr class="border-b"><td class="p-2 font-bold">18–23 mo</td><td><span class="reveal-text">HepA (2nd dose)</span></td><td>2nd</td></tr>
+                            <tr class="border-b"><td class="p-2 font-bold">4–6 years</td><td><span class="reveal-text">DTaP (5th), IPV (4th), MMR (2nd), Varicella (2nd)</span></td><td>Kindergarten boosters</td></tr>
+                            <tr><td class="p-2 font-bold">Annually</td><td><span class="reveal-text">Influenza (all children ≥6 months)</span></td><td>1 or 2 doses</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="progress-bar w-full my-4"></div>
+                    <button onclick="openQuiz('toddlerpreschool')" class="mt-4 w-full bg-slate-800 text-white font-black py-4 rounded-xl">Quiz → Unlock School‑age/Adolescent</button>
+                </div>
+            </section>
+
+            <!-- Section 4: School‑age & Adolescent (7–18 yr) -->
+            <section id="schoolage" class="content-section hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-black">School‑age & Adolescent (7–18 years)</h2>
+                    <table class="w-full text-sm border">
+                        <thead class="bg-imm text-white"><tr><th class="p-2">Age</th><th>Vaccine</th><th>Notes</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-2 font-bold">11–12 years</td><td><span class="reveal-text">Tdap (tetanus, diphtheria, pertussis booster)</span>, <span class="reveal-text">HPV (9‑valent, 2 doses if <15y, 3 doses if ≥15y)</span>, <span class="reveal-text">MenACWY (meningococcal conjugate)</span></td><td>Catch‑up HPV up to 26y</td></tr>
+                            <tr class="border-b"><td class="p-2 font-bold">16 years</td><td><span class="reveal-text">MenACWY booster</span>, <span class="reveal-text">MenB (shared clinical decision)</span></td><td>Some recommend MenB at 16–18y</td></tr>
+                            <tr><td class="p-2 font-bold">Annually</td><td><span class="reveal-text">Influenza</span></td><td>All ages</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="flip-card mt-4"><div class="flip-card-inner"><div class="flip-card-front">HPV vaccine schedule for 11‑year‑old</div><div class="flip-card-back">2 doses, 6–12 months apart (if started at ≥15y, 3 doses).</div></div></div>
+                    <button onclick="openQuiz('schoolage')" class="mt-6 w-full bg-slate-800 text-white font-black py-4 rounded-xl">Quiz → Unlock Adult & Special Populations</button>
+                </div>
+            </section>
+
+            <!-- Section 5: Adult & Special Populations -->
+            <section id="adult" class="content-section hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-black">Adult & Special Populations</h2>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><span class="font-bold">Td/Tdap:</span> <span class="reveal-text">Tdap every 10 years; one dose Tdap for adults who never received (then Td every 10y).</span></li>
+                        <li><span class="font-bold">Influenza:</span> <span class="reveal-text">Annual for all adults, especially high‑risk.</span></li>
+                        <li><span class="font-bold">Pneumococcal:</span> <span class="reveal-text">PCV15/20 or PPSV23 for adults ≥65 or high‑risk conditions.</span></li>
+                        <li><span class="font-bold">Zoster (shingles):</span> <span class="reveal-text">RZV (Shingrix) at age ≥50 years (two doses).</span></li>
+                        <li><span class="font-bold">COVID‑19:</span> <span class="reveal-text">Updated boosters as recommended.</span></li>
+                        <li><span class="font-bold">Pregnancy:</span> <span class="reveal-text">Tdap (27–36 weeks each pregnancy), influenza (any trimester).</span></li>
+                    </ul>
+                    <div class="progress-bar w-full my-4"></div>
+                    <button onclick="openQuiz('adult')" class="mt-4 w-full bg-slate-800 text-white font-black py-4 rounded-xl">Quiz → Unlock Nursing Role</button>
+                </div>
+            </section>
+
+            <!-- Section 6: Nursing Role & Adverse Events -->
+            <section id="nursing" class="content-section hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-black">Nursing Role & Adverse Event Management</h2>
+                    <div class="grid md:grid-cols-2 gap-5">
+                        <div>
+                            <p class="font-bold">Pre‑vaccination:</p>
+                            <ul class="list-disc pl-5"><li><span class="reveal-text">Screen contraindications/precautions</span></li><li><span class="reveal-text">Obtain informed consent</span></li><li><span class="reveal-text">Educate about expected side effects</span></li></ul>
+                            <p class="font-bold mt-2">Administration:</p>
+                            <ul class="list-disc pl-5"><li><span class="reveal-text">Use correct needle length, site (vastus lateralis for infants; deltoid for older children/adults)</span></li><li><span class="reveal-text">Separate injection sites by ≥1 inch</span></li></ul>
+                        </div>
+                        <div>
+                            <p class="font-bold">Adverse events:</p>
+                            <ul class="list-disc pl-5">
+                                <li>Common: <span class="reveal-text">Pain, redness, low‑grade fever, fussiness</span></li>
+                                <li>Serious (rare): <span class="reveal-text">Anaphylaxis (epinephrine ready), febrile seizures (MMR, DTaP), Guillain‑Barré (rare)</span></li>
+                            </ul>
+                            <p class="font-bold mt-2">Vaccine storage:</p>
+                            <p class="reveal-text">Refrigerated 2–8°C, frozen -15°C or colder; monitor temperature daily.</p>
+                        </div>
+                    </div>
+                    <button onclick="openQuiz('nursing')" class="mt-6 w-full bg-slate-800 text-white font-black py-4 rounded-xl">Quiz → Unlock Mnemonics</button>
+                </div>
+            </section>
+
+            <!-- Mnemonics & Review -->
+            <section id="mnemonics" class="content-section hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-black">Mnemonics & Quick Review</h2>
+                    <div class="grid md:grid-cols-2 gap-4 mt-4">
+                        <div class="bg-amber-100 p-4 rounded-xl"><span class="font-black">Infant vaccines at 2 months:</span> <span class="reveal-text">"DIP R Him" – DTaP, IPV, PCV13, RV, Hib (HepB at birth)</span></div>
+                        <div class="bg-amber-100 p-4 rounded-xl"><span class="font-black">Contraindications to live vaccines:</span> <span class="reveal-text">"PREGS" – Pregnancy, severe immunosuppression, anaphylaxis, recent immunoglobulin.</span></div>
+                        <div class="bg-amber-100 p-4 rounded-xl"><span class="font-black">Adolescent vaccines (11–12y):</span> <span class="reveal-text">"THM" – Tdap, HPV, MenACWY.</span></div>
+                        <div class="bg-amber-100 p-4 rounded-xl"><span class="font-black">Pregnancy vaccines:</span> <span class="reveal-text">"T.I.P." – Tdap (27‑36w), Influenza, (Pneumococcal if indicated).</span></div>
+                    </div>
+                    <button onclick="openQuiz('final_quiz')" class="mt-6 w-full bg-amber-500 text-slate-900 font-black py-4 rounded-xl text-lg">🏆 Take Final 50‑Item Exam</button>
+                </div>
+            </section>
+
+            <!-- Final exam placeholder -->
+            <section id="final_quiz_sec" class="content-section hidden text-center p-12"><i class="fa-solid fa-graduation-cap text-6xl text-amber-400"></i><h2 class="text-3xl font-black mt-4">Final Comprehensive Exam</h2><button onclick="openQuiz('final_quiz')" class="mt-6 bg-slate-800 text-white px-10 py-4 rounded-full text-xl">Start 50‑Item Exam</button></section>
+        </div>
+    </main>
+
+    <!-- Quiz Modal -->
+    <div id="quiz-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 overflow-auto">
+        <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeQuiz()" class="absolute top-4 right-4 text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            <h2 id="quiz-title" class="text-2xl font-black mb-4"></h2>
+            <div id="quiz-questions-container" class="space-y-4"></div>
+            <button id="quiz-submit-btn" onclick="submitQuiz()" class="w-full bg-imm text-white py-3 rounded-xl mt-4 font-bold">Submit Answers</button>
+            <div id="quiz-result-container" class="hidden mt-4 p-4 bg-slate-100 rounded-xl"></div>
+        </div>
+    </div>
+
+    <script>
+        // QUIZ DATA (10 questions each section)
+        const quizzes = {
+            fundamentals: { title: "Fundamentals of Immunization", next: "infant", questions: [
+                {q: "Which immunity results from vaccination?", options:["Natural passive","Artificial active","Artificial passive","Natural active"], ans:1},
+                {q: "Live attenuated vaccines include:", options:["IPV","MMR","HepB","DTaP"], ans:1},
+                {q: "A contraindication to MMR vaccine is:", options:["Mild URI","Pregnancy","Breastfeeding","Egg allergy"], ans:1},
+                {q: "Herd immunity protects:", options:["Only vaccinated","Unvaccinated individuals","Only elderly","Only children"], ans:1},
+                {q: "Which vaccine is a toxoid?", options:["Hib","DTaP (tetanus toxoid component)","PCV13","HPV"], ans:1},
+                {q: "Inactivated polio vaccine (IPV) is given by:", options:["Oral","IM or SC","Intradermal","Topical"], ans:1},
+                {q: "Vaccine adverse event reporting system is called:", options:["VAERS","CDC","FDA","WHO"], ans:0},
+                {q: "Which vaccine is routinely given at birth?", options:["MMR","HepB","Varicella","DTaP"], ans:1},
+                {q: "A child with anaphylaxis to egg can receive:", options:["MMR (safe)","Influenza (inactivated) – caution, but now generally safe","Both A and B","Neither"], ans:2},
+                {q: "The '5 in 1' vaccine includes:", options:["DTaP+Hib+IPV","MMR+Varicella","HepB+PCV13","RV+HPV"], ans:0}
+            ] },
+            infant: { title: "Infant Vaccines (Birth–12 mo)", next: "toddlerpreschool", questions: [
+                {q: "First dose of HepB is given at:", options:["Birth","2 months","4 months","6 months"], ans:0},
+                {q: "Rotavirus vaccine (RV) is NOT given after:", options:["8 months","12 months","6 months","24 months"], ans:0},
+                {q: "How many doses of PCV13 are given in infancy?", options:["2","3","4","5"], ans:2},
+                {q: "At 2 months, which vaccines are given?", options:["DTaP, IPV, Hib, PCV13, RV","MMR, Varicella","Tdap, HPV","MenACWY"], ans:0},
+                {q: "The first dose of influenza vaccine for a 6‑month‑old requires:", options:["1 dose","2 doses, 4 weeks apart","Annual only after 1 year","None"], ans:1},
+                {q: "Hib vaccine protects against:", options:["Hepatitis B","Haemophilus influenzae type b","Herpes","HIV"], ans:1},
+                {q: "Which vaccine is given orally?", options:["DTaP","IPV","RV (rotavirus)","PCV13"], ans:2},
+                {q: "At 12 months, the infant receives:", options:["MMR, Varicella, HepA","DTaP only","Tdap","HPV"], ans:0},
+                {q: "The minimum interval between rotavirus doses is:", options:["2 weeks","4 weeks","6 weeks","8 weeks"], ans:1},
+                {q: "Which vaccine is NOT recommended for an infant <6 months?", options:["HepB","Influenza","PCV13","DTaP"], ans:1}
+            ] },
+            toddlerpreschool: { title: "Toddler & Preschool (12 mo–6 yr)", next: "schoolage", questions: [
+                {q: "The 4th dose of DTaP is given at:", options:["12 months","15–18 months","4 years","6 years"], ans:1},
+                {q: "HepA vaccine requires how many doses?", options:["1","2 (6–18 months apart)","3","4"], ans:1},
+                {q: "Kindergarten entry requires boosters of:", options:["DTaP, IPV, MMR, Varicella","HPV only","MenACWY","Tdap"], ans:0},
+                {q: "Second dose of MMR is given at:", options:["12 months","4–6 years","11 years","18 months"], ans:1},
+                {q: "Which vaccine is given annually for this age group?", options:["MMR","Varicella","Influenza","HepA"], ans:2},
+                {q: "A 15‑month‑old is due for:", options:["DTaP (4th dose)","HPV","Tdap","MenB"], ans:0},
+                {q: "The minimum interval between MMR doses is:", options:["1 month","3 months","4 weeks (28 days)","6 months"], ans:2},
+                {q: "Varicella vaccine is live attenuated. True or false?", options:["True","False"], ans:0},
+                {q: "At 4–6 years, which vaccine is NOT given?", options:["DTaP","IPV","HPV","MMR"], ans:2},
+                {q: "A child who missed varicella vaccine should receive catch‑up doses at age:", options:["Any age, 2 doses 3 months apart","Only before 13 years","Only one dose","Not needed"], ans:0}
+            ] },
+            schoolage: { title: "School‑age & Adolescent (7–18 yr)", next: "adult", questions: [
+                {q: "At 11–12 years, the Tdap booster provides protection against:", options:["Tetanus, diphtheria, pertussis","Hepatitis","Meningitis","HPV"], ans:0},
+                {q: "HPV vaccine series for an 11‑year‑old requires:", options:["1 dose","2 doses","3 doses","4 doses"], ans:1},
+                {q: "MenACWY booster is recommended at age:", options:["14 years","16 years","18 years","21 years"], ans:1},
+                {q: "Which vaccine prevents meningococcal serogroup B?", options:["MenACWY","MenB","PCV13","HPV"], ans:1},
+                {q: "The HPV vaccine is approved for males up to age:", options:["21","26","45","18"], ans:2},
+                {q: "A 17‑year‑old who never received HPV should get:", options:["2 doses","3 doses (age ≥15 years)","1 dose","None"], ans:1},
+                {q: "Which adolescent vaccine is recommended for both sexes?", options:["HPV","MenACWY","Tdap","All of the above"], ans:3},
+                {q: "Contraindication to Tdap includes:", options:["Encephalopathy within 7 days of previous dose","Fever","Cough","Mild illness"], ans:0},
+                {q: "Meningococcal conjugate vaccine (MenACWY) is required for:", options:["College entry in many states","Employment","Travel only","All"], ans:0},
+                {q: "A 12‑year‑old with HIV should receive:", options:["PCV13 and PPSV23","HPV (3 doses)","MMR (if CD4 >15%)","All of the above"], ans:3}
+            ] },
+            adult: { title: "Adult & Special Populations", next: "nursing", questions: [
+                {q: "Tdap should be administered to pregnant women during:", options:["First trimester","27–36 weeks gestation","Postpartum","Any trimester"], ans:1},
+                {q: "Shingles vaccine (RZV) is recommended at age:", options:["50 years","60 years","65 years","70 years"], ans:0},
+                {q: "Adults aged ≥65 years should receive:", options:["PCV15/20 or PPSV23","HPV","MenACWY","MMR"], ans:0},
+                {q: "Healthcare workers require proof of immunity to:", options:["Measles, mumps, rubella, varicella, HepB","HPV","Shingles","Rotavirus"], ans:0},
+                {q: "A 70‑year‑old with COPD needs which pneumococcal vaccine?", options:["PCV15 + PPSV23 one year later","Only PPSV23","Only PCV13","None"], ans:0},
+                {q: "Influenza vaccine is contraindicated in:", options:["Egg allergy (mild)","History of GBS within 6 weeks of previous flu vaccine","Pregnancy","Asthma"], ans:1},
+                {q: "Which vaccine is given as a single dose for most adults?", options:["Tdap","Zoster (RZV) 2 doses","PCV15","IPV"], ans:2},
+                {q: "A pregnant woman should receive Tdap in each pregnancy to:", options:["Protect the newborn via passive antibodies","Prevent maternal tetanus only","Boost her own immunity","Avoid hospitalization"], ans:0},
+                {q: "International travelers to endemic areas may need:", options:["Yellow fever","Typhoid","Cholera","All of the above"], ans:3},
+                {q: "The most common vaccine‑preventable disease in adults is:", options:["Influenza","Pertussis","Tetanus","HepB"], ans:0}
+            ] },
+            nursing: { title: "Nursing Role & Adverse Events", next: "mnemonics", questions: [
+                {q: "The nurse should screen for contraindications:", options:["Before every vaccine","Only first dose","Once a year","Never"], ans:0},
+                {q: "Vaccine injection site for a toddler is usually:", options:["Deltoid","Vastus lateralis","Gluteal","Forearm"], ans:1},
+                {q: "A patient reports fainting after vaccination. Next action:", options:["Lie supine or Trendelenburg","Give oral fluids","Send home","Administer epinephrine"], ans:0},
+                {q: "Vaccines containing thimerosal (preservative) are contraindicated in:", options:["Pregnancy","Egg allergy","Thimerosal allergy","All"], ans:2},
+                {q: "Which vaccine is known to cause febrile seizures (rare)?", options:["MMR","DTaP","Both","None"], ans:2},
+                {q: "Epinephrine should be immediately available for:", options:["All vaccinations","Only live vaccines","Only egg‑based vaccines","Only MMR"], ans:0},
+                {q: "The 'C' in the 5 rights of vaccine administration stands for:", options:["Child","Correct vaccine, dose, route, time, patient","Consent","Cold chain"], ans:1},
+                {q: "A valid contraindication to DTaP is:", options:["Temperature <40.5°C","Inconsolable crying for 3 hours","Seizure within 7 days with a clear cause","Progressive neurologic disorder"], ans:3},
+                {q: "Vaccine storage temperature for refrigerated vaccines is:", options:["-15°C","2–8°C","0–4°C","-20°C"], ans:1},
+                {q: "A nurse should report serious adverse events to:", options:["VAERS","FDA","CDC","State health department"], ans:0}
+            ] }
+        };
+        // Build final 50 items (10 from each of the first 5 core sections)
+        let finalSet = [];
+        for(let s of ['fundamentals','infant','toddlerpreschool','schoolage','adult']) {
+            finalSet = finalSet.concat(quizzes[s].questions.slice(0,10));
+        }
+        while(finalSet.length < 50) finalSet.push({q:"Which vaccine is contraindicated in pregnancy?", options:["Tdap","Influenza (inactivated)","MMR","HepB"], ans:2});
+        quizzes['final_quiz'] = { title: "Final 50-Item Exam: Immunization", next: null, questions: finalSet };
+
+        let unlockedSections = ['home'];
+        function unlockFirstSection() { if(!unlockedSections.includes('fundamentals')) { unlockedSections.push('fundamentals'); updateSidebarUI(); } showSection('fundamentals'); }
+        function showSection(s) { if(!unlockedSections.includes(s) && s!=='home') { alert("Complete the current section's quiz (≥75%) to unlock the next content."); return; } document.querySelectorAll('.content-section').forEach(el=>el.classList.add('hidden')); document.getElementById(s)?.classList.remove('hidden'); if(window.innerWidth<768) document.getElementById('sidebar').classList.add('hidden'); document.querySelector('main').scrollTop=0; }
+        function updateSidebarUI() { document.querySelectorAll('.nav-btn').forEach(btn=>{ let sec=btn.id.replace('btn-',''); let locked=!unlockedSections.includes(sec) && sec!=='home'; if(locked){ btn.classList.add('locked-section'); btn.querySelector('.fa-lock')?.classList.remove('hidden'); btn.querySelector('.nav-icon')?.classList.add('hidden'); } else { btn.classList.remove('locked-section'); btn.querySelector('.fa-lock')?.classList.add('hidden'); btn.querySelector('.nav-icon')?.classList.remove('hidden'); } }); }
+        let currentQuiz=null;
+        function openQuiz(sec) { currentQuiz=sec; let qd=quizzes[sec]; document.getElementById('quiz-title').innerText=qd.title; let container=document.getElementById('quiz-questions-container'); container.innerHTML=''; qd.questions.forEach((q,idx)=>{ let html=`<div class="border p-3 rounded mb-3"><p class="font-bold">${idx+1}. ${q.q}</p>`; q.options.forEach((opt,oi)=>{ html+=`<label class="block"><input type="radio" name="q${idx}" value="${oi}"> ${opt}</label>`; }); html+=`<div class="feedback-${idx} text-sm mt-1"></div></div>`; container.innerHTML+=html; }); document.getElementById('quiz-modal').classList.remove('hidden'); document.getElementById('quiz-submit-btn').classList.remove('hidden'); document.getElementById('quiz-result-container').classList.add('hidden'); }
+        function closeQuiz() { document.getElementById('quiz-modal').classList.add('hidden'); }
+        function submitQuiz() { let qd=quizzes[currentQuiz]; let score=0; for(let i=0;i<qd.questions.length;i++){ let sel=document.querySelector(`input[name="q${i}"]:checked`); let correct=sel && parseInt(sel.value)===qd.questions[i].ans; if(correct) score++; let fb=document.querySelector(`.feedback-${i}`); if(fb){ let ansText=qd.questions[i].options[qd.questions[i].ans]; fb.innerHTML=correct?`<span class="text-green-600">✔ Correct</span>`:`<span class="text-red-600">✘ Wrong. Correct: ${ansText}</span>`; } } let pct=score/qd.questions.length*100; let resDiv=document.getElementById('quiz-result-container'); document.getElementById('quiz-submit-btn').classList.add('hidden'); resDiv.classList.remove('hidden'); if(pct>=75){ if(currentQuiz==='final_quiz'){ resDiv.innerHTML=`<div class="text-green-700 text-center font-bold">🎉 Score ${score}/${qd.questions.length} (${pct}%) – Immunization Mastery Achieved!</div><button onclick="closeQuiz()" class="mt-2 bg-slate-800 text-white p-2 rounded w-full">Close</button>`; return; } if(qd.next && !unlockedSections.includes(qd.next)){ unlockedSections.push(qd.next); if(qd.next==='mnemonics') unlockedSections.push('final_quiz_sec'); updateSidebarUI(); } resDiv.innerHTML=`<div class="text-green-700">✅ Passed! ${score}/${qd.questions.length} (${pct}%)</div><button onclick="closeQuiz(); showSection('${qd.next}')" class="mt-2 bg-green-600 text-white p-2 rounded w-full">Unlock ${qd.next.charAt(0).toUpperCase()+qd.next.slice(1)}</button>`; } else { resDiv.innerHTML=`<div class="text-red-600">❌ Failed (${pct}%). Need 75%.</div><button onclick="openQuiz('${currentQuiz}')" class="mt-2 bg-slate-600 text-white p-2 rounded w-full">Try Again</button>`; } }
+        function toggleRecallMode() { let active=!document.body.classList.contains('recall-mode'); let toggle=document.getElementById('recall-toggle'), knob=document.getElementById('recall-knob'); if(active){ document.body.classList.add('recall-mode'); toggle.classList.add('bg-imm-dark'); knob.classList.add('translate-x-6'); } else { document.body.classList.remove('recall-mode'); toggle.classList.remove('bg-imm-dark'); knob.classList.remove('translate-x-6'); } }
+        function toggleMobileMenu() { let s=document.getElementById('sidebar'); s.classList.toggle('hidden'); }
+        window.addEventListener('load', function() {
+            new Chart(document.getElementById('herdChart'), { type:'bar', data:{ labels:['Measles','Polio','Smallpox','COVID‑19'], datasets:[{ label:'Herd immunity threshold (%)', data:[95,80,85,80], backgroundColor:'#b45309' }] }, options:{ scales:{ y:{ title:{ display:true, text:'Required vaccinated (%)' }, min:0, max:100 } } } });
+            updateSidebarUI();
+            document.querySelectorAll('.reveal-text').forEach(el => el.addEventListener('click', function() { if(document.body.classList.contains('recall-mode')) this.classList.toggle('revealed'); }));
+        });
+    </script>
+</body>
+</html>
